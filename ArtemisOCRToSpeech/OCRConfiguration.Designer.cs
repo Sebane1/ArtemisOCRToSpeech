@@ -63,6 +63,7 @@
             // ocrChecker
             // 
             ocrChecker.Interval = 1000;
+            ocrChecker.Tick += ocrChecker_Tick;
             // 
             // OCRConfiguration
             // 
