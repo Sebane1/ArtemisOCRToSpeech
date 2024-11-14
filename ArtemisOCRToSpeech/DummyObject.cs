@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace RoleplayingVoiceDalamud {
-    internal class DummyObject : IGameObject {
+    internal class DummyObject : IMediaGameObject {
         public DummyObject() {
             Name = Guid.NewGuid().ToString();
         }
@@ -23,5 +23,9 @@ namespace RoleplayingVoiceDalamud {
         public Vector3 Top => new Vector3();
 
         public string FocusedPlayerObject => "";
+
+        public bool Invalid => throw new NotImplementedException();
+
+        Vector3 IMediaGameObject.Rotation => new Vector3(0, Rotation, 0);
     }
 }

@@ -109,7 +109,7 @@ namespace ArtemisOCRToSpeech {
                 }
                 if (!string.IsNullOrEmpty(_lastValidSpeakerName)) {
                     if (_lastDialogue == null || (!string.IsNullOrEmpty(_lastValidDialogue) && !_lastDialogue.Contains(_lastValidDialogue))) {
-                        _artemis?.NPCText(_lastValidSpeakerName, _lastValidDialogue);
+                        _artemis?.NPCText(_lastValidSpeakerName, _lastValidDialogue, RoleplayingVoiceCore.NPCVoiceManager.VoiceModel.Speed, false, RoleplayingVoiceCore.VoiceLinePriority.None);
                         _lastDialogue = _lastValidDialogue;
                         _lastValidSpeakerName = null;
                         _lastValidDialogue = null;

@@ -20,14 +20,17 @@ namespace ArtemisOCRToSpeech {
         private ushort _territoryType;
 
         public ArtemisFFXIV() {
-            _npcVoiceManager = new NPCVoiceManager(NPCVoiceMapping.GetVoiceMappings(), NPCVoiceMapping.GetExtrasVoiceMappings());
-            _mediaManager = new MediaManager(new DummyObject(), new DummyObject(), AppDomain.CurrentDomain.BaseDirectory);
+            Initialize();
         }
-        public async void NPCText(string npcName, string message, bool redoLine = false) {
+        private async void Initialize() {
+            _npcVoiceManager = new NPCVoiceManager(await NPCVoiceMapping.GetVoiceMappings(), await NPCVoiceMapping.GetCharacterToCacheType(), "", "");
+            _mediaManager = new MediaManager(new DummyObject(), new DummyObject(), AppDomain.CurrentDomain.BaseDirectory);
+            ////_npcVoiceManager.CustomRelayServer = "ai.hubujubu.com";
+            ////_npcVoiceManager.Port = "5697";
+            ////_npcVoiceManager.UseCustomRelayServer = true;
+        }
+        public async void NPCText(string npcName, string message, NPCVoiceManager.VoiceModel voiceModel, bool redoLine = false, VoiceLinePriority voiceLinePriority = VoiceLinePriority.None) {
             if (message != null && !message.Contains("You have submitted")) {
-                //bool gender = false;
-                //byte race = 0;
-                //int body = 0;
                 bool isRetainer = false;
                 ReportData data = null;
                 if (NPCVoiceMapping.SpeakerList.ContainsKey(npcName)) {
@@ -39,17 +42,25 @@ namespace ArtemisOCRToSpeech {
                         string nameToUse = npcName;
                         string value = message;
                         string arcValue = message;
-                        string backupVoice = PickVoiceBasedOnTraits(nameToUse, !data.gender, data.race, data.body, 0);
-                        KeyValuePair<Stream, bool> stream =
-                        await _npcVoiceManager.GetCharacterAudio(value, arcValue, nameToUse, !data.gender, backupVoice, false, true, "", redoLine);
-                        if (stream.Key != null) {
+                        bool foundName = false;
+                        bool isExtra = false;
+                        bool isTerritorySpecific = false;
+                        string backupVoice = PickVoiceBasedOnTraits(nameToUse, !data.gender, data.race, data.body, data.TerritoryId, ref isExtra, ref isTerritorySpecific);
+                        MemoryStream stream = new MemoryStream();
+                        var values =
+                        await _npcVoiceManager.GetCharacterAudio(stream, value, arcValue, message, nameToUse, !data.gender, backupVoice, false, voiceModel, "", redoLine, false, false, voiceLinePriority);
+                        var conditionsToUseXivV = VoiceLinePriority.None;
+                        var conditionToUseElevenLabs = isExtra || isTerritorySpecific ? VoiceLinePriority.ETTS : conditionsToUseXivV;
+                        var conditionToUseOverride = voiceLinePriority != VoiceLinePriority.None ? voiceLinePriority : conditionToUseElevenLabs;
+                        var conditionsForDatamining = false ? VoiceLinePriority.Datamining : conditionToUseOverride;
+                        if (stream != null) {
                             Task task = null;
                             ushort lipId = 0;
                             bool canDoLipSync = true;
-                            WaveStream wavePlayer = GetWavePlayer(npcName, stream.Key);
+                            WaveStream wavePlayer = GetWavePlayer(npcName, stream);
                             if (wavePlayer != null) {
                                 bool useSmbPitch = CheckIfshouldUseSmbPitch(nameToUse, data.body);
-                                float pitch = stream.Value ? CheckForDefinedPitch(nameToUse) :
+                                float pitch = values.Item1 ? CheckForDefinedPitch(nameToUse) :
                                 CalculatePitchBasedOnTraits(nameToUse, !data.gender, data.race, data.body, 0.09f);
                                 bool lipWasSynced = false;
                                 _mediaManager.PlayAudioStream(new DummyObject(), wavePlayer, SoundType.NPC,
@@ -216,10 +227,16 @@ namespace ArtemisOCRToSpeech {
             }
             return 1;
         }
-        public string PickVoiceBasedOnTraits(string npcName, bool gender, byte race, int body, uint territory) {
-            string[] maleVoices = GetVoicesBasedOnTerritory(territory, false);
-            string[] femaleVoices = GetVoicesBasedOnTerritory(territory, true);
+        public string PickVoiceBasedOnTraits(string npcName, bool gender, byte race, int body, uint territory, ref bool isExtra, ref bool isTerritorySpecific) {
+            string[] maleVoices = GetVoicesBasedOnTerritory(territory, false, ref isTerritorySpecific);
+            string[] femaleVoices = GetVoicesBasedOnTerritory(territory, true, ref isTerritorySpecific);
             string[] femaleViera = new string[] { "Aet", "Cet", "Uet" };
+            foreach (KeyValuePair<string, string> voice in NPCVoiceMapping.GetExtrasVoiceMappings()) {
+                if (npcName.Contains(voice.Key)) {
+                    isExtra = true;
+                    return voice.Value;
+                }
+            }
             if (npcName.EndsWith("way") || body == 11052) {
                 return "Lrit";
             }
@@ -231,7 +248,7 @@ namespace ArtemisOCRToSpeech {
             if (body == 11029) {
                 gender = true;
             }
-            if (npcName.ToLower().Contains("siren")) {
+            if (npcName.ToLower().Contains("siren") || npcName.ToLower().Contains("il ja")) {
                 gender = true;
             }
             switch (race) {
@@ -243,12 +260,20 @@ namespace ArtemisOCRToSpeech {
                 case 6:
                 case 4:
                 case 7:
-                    return !gender && body != 4 ?
+                    bool isDawntrail = territory == 1187 || territory == 1188 ||
+                                       territory == 1189 || territory == 1185;
+                    return !gender && (body != 4 || isDawntrail) ?
                     PickVoice(npcName, maleVoices) :
                     PickVoice(npcName, femaleVoices);
                 case 8:
-                    return gender ? PickVoice(npcName, femaleViera) :
-                    PickVoice(npcName, maleVoices);
+                    if (territory == 817) {
+                        isTerritorySpecific = true;
+                        return gender ? PickVoice(npcName, femaleViera) : PickVoice(npcName, maleVoices);
+                    } else {
+                        return !gender && body != 4 ?
+                        PickVoice(npcName, maleVoices) : PickVoice(npcName, femaleVoices);
+                    }
+                    break;
             }
             return "";
         }
@@ -259,20 +284,71 @@ namespace ArtemisOCRToSpeech {
         private int GetSimpleHash(string s) {
             return s.Select(a => (int)a).Sum();
         }
-        string[] GetVoicesBasedOnTerritory(uint territory, bool gender) {
+        public static string[] GetVoicesBasedOnTerritory(uint territory, bool gender, ref bool isTerritorySpecific) {
             string[] maleVoices = new string[] { "Mciv", "Zin", "udm1", "gm1", "Beggarly", "gnat", "ig1", "thord", "vark", "ckeep", "pide", "motanist", "lator", "sail", "lodier" };
             string[] femaleThavnair = new string[] { "tf1", "tf2", "tf3", "tf4" };
             string[] femaleVoices = new string[] { "Maiden", "Dla", "irhm", "ouncil", "igate" };
             string[] maleThavnair = new string[] { "tm1", "tm2", "tm3", "tm4" };
             string[] femaleViera = new string[] { "Aet", "Cet", "Uet" };
+
+            string[] maleVoiceYokTural = { "DTM1", "DTM2", "DTM3", "DTM4", "DTM5", "DTM6", "DTM7", "DTM8", "DTM9", "DTM10" };
+            string[] femaleVoiceYokTural = { "DTF1", "DTF2" };
+
+            // We messed up and mixed up the solution 9 voice list with the wrong zone. Keeping the same item count prevents needing to regenerate a bunch of lines.
+            string[] maleVoiceXakTural = {"XTM1", "XTM2", "XTM3", "XTM4", "XTM5", "XTM6", "XTM7", "XTM8", "XTM9",
+            "XTM10","XTM1", "XTM2", "XTM3", "XTM4", "XTM5",
+            "XTM6", "XTM7", "XTM1", "XTM2", "XTM3", "XTM4", "XTM5", "XTM6", "XTM7", "XTM8", "XTM9", "XTM10" };
+
+            string[] femaleVoiceXakTural = {
+                "XTF1", "XTF2", "XTF3", "XTF4", "XTF5", "XTF6", "XTF1", "XTF2", "XTF3", "XTF4", "XTF5", "XTF6", "XTF7"
+            };
+
+            string[] maleVoiceSolutionNine = {
+            "Mciv", "Zin", "udm1", "gm1", "Beggarly", "gnat", "ig1", "thord", "vark",
+            "ckeep", "pide", "motanist", "lator", "sail", "lodier",
+            "SNM1", "SNM2", "XTM1", "XTM2", "XTM3", "XTM4", "XTM5", "XTM6", "XTM7", "XTM8", "XTM9", "XTM10"};
+
+            string[] femaleVoiceSolutionNine = {
+               "SNF1","Maiden", "Dla", "irhm", "ouncil", "igate","XTF1", "XTF2", "XTF3", "XTF4", "XTF5", "XTF6","XTF7"
+            };
+
+
+            string[] maleVoiceTuliyolal = {
+            "DTM1", "DTM2", "DTM3", "DTM4", "DTM5", "DTM6", "DTM7", "DTM8", "DTM9", "DTM10",
+            "XTM1", "XTM2", "XTM3", "XTM4", "XTM5", "XTM6", "XTM7", "XTM8", "XTM9", "XTM10"};
+
+            string[] femaleVoiceTuliyolal = {
+               "DTF1","DTF2", "XTF1", "XTF2", "XTF3", "XTF4", "XTF5", "XTF6","XTF7"
+            };
+
             switch (territory) {
+                // Spanish/American - Accents Tuliyolal
+                case 1185:
+                    isTerritorySpecific = true;
+                    return gender ? femaleVoiceTuliyolal : maleVoiceTuliyolal;
+                // Spanish Accents - Yok Tural
+                case 1187:
+                case 1188:
+                case 1189:
+                    isTerritorySpecific = true;
+                    return gender ? femaleVoiceYokTural : maleVoiceYokTural;
+                // Western Accents - Xak Tural
+                case 1190:
+                case 1191:
+                    isTerritorySpecific = true;
+                    return gender ? femaleVoiceXakTural : maleVoiceXakTural;
+                // American/British Accents - Solution Nine
+                case 1186:
+                    isTerritorySpecific = true;
+                    return gender ? femaleVoiceSolutionNine : maleVoiceSolutionNine;
+                // Thavnair Accents
                 case 963:
                 case 957:
+                    isTerritorySpecific = true;
                     return gender ? femaleThavnair : maleThavnair;
                 default:
                     return gender ? femaleVoices : maleVoices;
             }
-
         }
     }
 }
