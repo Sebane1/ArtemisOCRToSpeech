@@ -11,47 +11,53 @@ using System.Threading.Tasks;
 using RoleplayingVoiceDalamud;
 using Concentus.Oggfile;
 using Concentus.Structs;
+using RoleplayingVoiceDalamud.Datamining;
 
 namespace ArtemisOCRToSpeech {
     public class ArtemisFFXIV {
         private NPCVoiceManager _npcVoiceManager;
         private MediaManager _mediaManager;
-        private int _territoryType;
+        private ushort _territoryType;
 
         public ArtemisFFXIV() {
-            _npcVoiceManager = new NPCVoiceManager(NPCVoiceMapping.GetVoiceMappings());
+            _npcVoiceManager = new NPCVoiceManager(NPCVoiceMapping.GetVoiceMappings(), NPCVoiceMapping.GetExtrasVoiceMappings());
             _mediaManager = new MediaManager(new DummyObject(), new DummyObject(), AppDomain.CurrentDomain.BaseDirectory);
         }
-
         public async void NPCText(string npcName, string message, bool redoLine = false) {
-            if (!message.Contains("You have submitted")) {
-                bool gender = false;
-                byte race = 0;
-                int body = 0;
+            if (message != null && !message.Contains("You have submitted")) {
+                //bool gender = false;
+                //byte race = 0;
+                //int body = 0;
                 bool isRetainer = false;
-                if (!isRetainer) {
-                    string nameToUse = npcName;
-                    string value = message;
-                    string arcValue = message;
-                    string backupVoice = PickVoiceBasedOnTraits(nameToUse, gender, race, body, 0);
-                    KeyValuePair<Stream, bool> stream =
-                    await _npcVoiceManager.GetCharacterAudio(value, arcValue, nameToUse, gender, backupVoice, false, true, "", redoLine);
-                    
-                    if (stream.Key != null) {
-                        Task task = null;
-                        ushort lipId = 0;
-                        bool canDoLipSync = true;
-                        WaveStream wavePlayer = GetWavePlayer(npcName, stream.Key);
-                        if (wavePlayer != null) {
-                            bool useSmbPitch = CheckIfshouldUseSmbPitch(nameToUse, body);
-                            float pitch = stream.Value ? CheckForDefinedPitch(nameToUse) :
-                            CalculatePitchBasedOnTraits(nameToUse, gender, race, body, 0.09f);
-                            bool lipWasSynced = false;
-                            _mediaManager.PlayAudioStream(new DummyObject(), wavePlayer, SoundType.NPC,
-                                false, useSmbPitch, pitch, 0, false, null, null, 1);
+                ReportData data = null;
+                if (NPCVoiceMapping.SpeakerList.ContainsKey(npcName)) {
+                    data = NPCVoiceMapping.SpeakerList[npcName];
+                    _territoryType = data.TerritoryId;
+                }
+                if (data != null) {
+                    if (!isRetainer) {
+                        string nameToUse = npcName;
+                        string value = message;
+                        string arcValue = message;
+                        string backupVoice = PickVoiceBasedOnTraits(nameToUse, !data.gender, data.race, data.body, 0);
+                        KeyValuePair<Stream, bool> stream =
+                        await _npcVoiceManager.GetCharacterAudio(value, arcValue, nameToUse, !data.gender, backupVoice, false, true, "", redoLine);
+                        if (stream.Key != null) {
+                            Task task = null;
+                            ushort lipId = 0;
+                            bool canDoLipSync = true;
+                            WaveStream wavePlayer = GetWavePlayer(npcName, stream.Key);
+                            if (wavePlayer != null) {
+                                bool useSmbPitch = CheckIfshouldUseSmbPitch(nameToUse, data.body);
+                                float pitch = stream.Value ? CheckForDefinedPitch(nameToUse) :
+                                CalculatePitchBasedOnTraits(nameToUse, !data.gender, data.race, data.body, 0.09f);
+                                bool lipWasSynced = false;
+                                _mediaManager.PlayAudioStream(new DummyObject(), wavePlayer, SoundType.NPC,
+                                    false, useSmbPitch, pitch, 0, false, null, null, 1);
+                            } else {
+                            }
                         } else {
                         }
-                    } else {
                     }
                 }
             }

@@ -28,6 +28,12 @@
             configureDescriptionAreaButton = new Button();
             startFFXIVReaderButton = new Button();
             ocrChecker = new System.Windows.Forms.Timer(components);
+            speakerImageBox = new PictureBox();
+            dialogueImageBox = new PictureBox();
+            speakerLabel = new Label();
+            dialogueTextBox = new TextBox();
+            ((System.ComponentModel.ISupportInitialize)speakerImageBox).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)dialogueImageBox).BeginInit();
             SuspendLayout();
             // 
             // configureNameAreaButton
@@ -42,7 +48,7 @@
             // 
             // configureDescriptionAreaButton
             // 
-            configureDescriptionAreaButton.Location = new Point(4, 28);
+            configureDescriptionAreaButton.Location = new Point(178, 4);
             configureDescriptionAreaButton.Name = "configureDescriptionAreaButton";
             configureDescriptionAreaButton.Size = new Size(168, 23);
             configureDescriptionAreaButton.TabIndex = 1;
@@ -52,7 +58,7 @@
             // 
             // startFFXIVReaderButton
             // 
-            startFFXIVReaderButton.Location = new Point(5, 52);
+            startFFXIVReaderButton.Location = new Point(352, 4);
             startFFXIVReaderButton.Name = "startFFXIVReaderButton";
             startFFXIVReaderButton.Size = new Size(168, 23);
             startFFXIVReaderButton.TabIndex = 2;
@@ -65,17 +71,60 @@
             ocrChecker.Interval = 1000;
             ocrChecker.Tick += ocrChecker_Tick;
             // 
+            // speakerImageBox
+            // 
+            speakerImageBox.BackgroundImageLayout = ImageLayout.Stretch;
+            speakerImageBox.Location = new Point(4, 33);
+            speakerImageBox.Name = "speakerImageBox";
+            speakerImageBox.Size = new Size(217, 45);
+            speakerImageBox.TabIndex = 3;
+            speakerImageBox.TabStop = false;
+            // 
+            // dialogueImageBox
+            // 
+            dialogueImageBox.BackgroundImageLayout = ImageLayout.Stretch;
+            dialogueImageBox.Location = new Point(4, 84);
+            dialogueImageBox.Name = "dialogueImageBox";
+            dialogueImageBox.Size = new Size(618, 183);
+            dialogueImageBox.TabIndex = 4;
+            dialogueImageBox.TabStop = false;
+            // 
+            // speakerLabel
+            // 
+            speakerLabel.AutoSize = true;
+            speakerLabel.Location = new Point(8, 283);
+            speakerLabel.Name = "speakerLabel";
+            speakerLabel.Size = new Size(48, 15);
+            speakerLabel.TabIndex = 5;
+            speakerLabel.Text = "Speaker";
+            // 
+            // dialogueTextBox
+            // 
+            dialogueTextBox.Location = new Point(8, 302);
+            dialogueTextBox.Multiline = true;
+            dialogueTextBox.Name = "dialogueTextBox";
+            dialogueTextBox.Size = new Size(605, 117);
+            dialogueTextBox.TabIndex = 6;
+            // 
             // OCRConfiguration
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(179, 77);
+            ClientSize = new Size(625, 431);
+            Controls.Add(dialogueTextBox);
+            Controls.Add(speakerLabel);
+            Controls.Add(dialogueImageBox);
+            Controls.Add(speakerImageBox);
             Controls.Add(startFFXIVReaderButton);
             Controls.Add(configureDescriptionAreaButton);
             Controls.Add(configureNameAreaButton);
             Name = "OCRConfiguration";
             Text = "OCRConfiguration";
+            TopMost = true;
+            ((System.ComponentModel.ISupportInitialize)speakerImageBox).EndInit();
+            ((System.ComponentModel.ISupportInitialize)dialogueImageBox).EndInit();
             ResumeLayout(false);
+            PerformLayout();
         }
 
         #endregion
@@ -84,5 +133,9 @@
         private Button configureDescriptionAreaButton;
         private Button startFFXIVReaderButton;
         private System.Windows.Forms.Timer ocrChecker;
+        private PictureBox speakerImageBox;
+        private PictureBox dialogueImageBox;
+        private Label speakerLabel;
+        private TextBox dialogueTextBox;
     }
 }
